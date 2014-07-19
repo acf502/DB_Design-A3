@@ -1,0 +1,190 @@
+SQL> 
+SQL> SET ECHO ON
+SQL> SET FEEDBACK ON
+SQL> set PAGESIZE 25
+SQL> 
+SQL> /*
+SQL> Name: Aaron Colin Foote
+SQL> File: Solution 5 for CSCI315 Assignment 3
+SQL> Date: 13th May 2014
+SQL> Note:
+SQL>  */
+SQL> 
+SQL> /* (1) First, the script uses a script testsql.sql to get a query execution plan and the
+SQL> results from simple performance testing of a query saved in a file query.sql. It
+SQL> is explained in HOMEWORK, Experiment 9.2 How to improve performance
+SQL> of database applications ? how to use a scrip testsql.sql. */
+SQL> @testsql.sql
+SQL> SET LINESIZE 100
+SQL> SET PAGESIZE 300
+SQL> ACCEPT SCRIPT	CHAR PROMPT 'Script name>'
+Script name>query
+SQL> 
+SQL> SET AUTOTRACE TRACEONLY
+SQL> @&SCRIPT
+SQL> /*
+SQL> Name: Aaron Colin Foote
+SQL> File: query.sql for CSCI315 Assignment 3
+SQL> Date: 13th May 2014
+SQL> Note:
+SQL>  */
+SQL> 
+SQL> SELECT O_ORDERKEY, O_ORDERSTATUS, O_TOTALPRICE, R_NAME
+  2  FROM ORDERS
+  3  JOIN CUSTOMER
+  4  ON O_CUSTKEY = C_CUSTKEY
+  5  JOIN NATION
+  6  ON C_NATIONKEY = N_NATIONKEY
+  7  JOIN REGION
+  8  ON N_REGIONKEY = R_REGIONKEY
+  9  WHERE O_ORDERDATE > '31-DEC-97' AND O_ORDERDATE < '01-JAN-99';
+
+40546 rows selected.
+
+
+Execution Plan
+----------------------------------------------------------                                          
+Plan hash value: 767587204                                                                          
+                                                                                                    
+----------------------------------------------------------------------------------                  
+| Id  | Operation             | Name     | Rows  | Bytes | Cost (%CPU)| Time     |                  
+----------------------------------------------------------------------------------                  
+|   0 | SELECT STATEMENT      |          | 40042 |  2737K|  3114   (1)| 00:00:01 |                  
+|*  1 |  FILTER               |          |       |       |            |          |                  
+|*  2 |   HASH JOIN           |          | 40042 |  2737K|  3114   (1)| 00:00:01 |                  
+|   3 |    TABLE ACCESS FULL  | REGION   |     5 |   145 |    12   (0)| 00:00:01 |                  
+|*  4 |    HASH JOIN          |          | 40042 |  1603K|  3102   (1)| 00:00:01 |                  
+|*  5 |     TABLE ACCESS FULL | NATION   |    25 |   150 |    12   (0)| 00:00:01 |                  
+|*  6 |     HASH JOIN         |          | 40042 |  1368K|  3090   (1)| 00:00:01 |                  
+|*  7 |      TABLE ACCESS FULL| CUSTOMER | 45000 |   351K|   389   (0)| 00:00:01 |                  
+|*  8 |      TABLE ACCESS FULL| ORDERS   | 40042 |  1055K|  2700   (1)| 00:00:01 |                  
+----------------------------------------------------------------------------------                  
+                                                                                                    
+Predicate Information (identified by operation id):                                                 
+---------------------------------------------------                                                 
+                                                                                                    
+   1 - filter(TO_DATE('01-JAN-99')>TO_DATE('31-DEC-97'))                                            
+   2 - access("NATION"."N_REGIONKEY"="R_REGIONKEY")                                                 
+   4 - access("CUSTOMER"."C_NATIONKEY"="N_NATIONKEY")                                               
+   5 - filter("NATION"."N_REGIONKEY">=0)                                                            
+   6 - access("O_CUSTKEY"="C_CUSTKEY")                                                              
+   7 - filter("CUSTOMER"."C_NATIONKEY">=0)                                                          
+   8 - filter("ORDERS"."O_ORDERDATE">'31-DEC-97' AND                                                
+              "ORDERS"."O_ORDERDATE"<'01-JAN-99' AND "O_CUSTKEY">=0)                                
+
+
+Statistics
+----------------------------------------------------------                                          
+        216  recursive calls                                                                        
+          0  db block gets                                                                          
+      18051  consistent gets                                                                        
+       2397  physical reads                                                                         
+     455084  redo size                                                                              
+    2025203  bytes sent via SQL*Net to client                                                       
+      30276  bytes received via SQL*Net from client                                                 
+       2705  SQL*Net roundtrips to/from client                                                      
+         17  sorts (memory)                                                                         
+          0  sorts (disk)                                                                           
+      40546  rows processed                                                                         
+
+SQL> SET AUTOTRACE OFF
+SQL> 
+SQL> PROMPT Done.
+Done.
+SQL> 
+SQL> /* (2) Next, the script denormalizes a relational table ORDERS to speed up the processing
+SQL> of the query consistent with the given template. */
+SQL> ALTER TABLE ORDERS
+  2  ADD O_REGIONNAME CHAR(25);
+
+Table altered.
+
+SQL> 
+SQL> UPDATE ORDERS OD
+  2  SET O_REGIONNAME = (
+  3  SELECT R_NAME
+  4  FROM REGION
+  5  JOIN NATION
+  6  	     ON R_REGIONKEY = N_REGIONKEY
+  7  JOIN CUSTOMER
+  8  	     ON N_NATIONKEY = C_NATIONKEY
+  9  JOIN ORDERS
+ 10  	     ON C_CUSTKEY = O_CUSTKEY
+ 11  WHERE O_ORDERKEY = OD.O_ORDERKEY );
+
+450000 rows updated.
+
+SQL> 
+SQL> /* (3) Next, the script uses a script testsql.sql to get a query execution plan and the
+SQL> results from simple performance testing of a query saved in a file denorm.sql. It
+SQL> is explained in HOMEWORK, Experiment 9.2 How to improve performance
+SQL> of database applications ? how to use a scrip testsql.sql. */
+SQL> @testsql.sql
+SQL> SET LINESIZE 100
+SQL> SET PAGESIZE 300
+SQL> ACCEPT SCRIPT	CHAR PROMPT 'Script name>'
+Script name>denorm
+SQL> 
+SQL> SET AUTOTRACE TRACEONLY
+SQL> @&SCRIPT
+SQL> /*
+SQL> Name: Aaron Colin Foote
+SQL> File: denorm.sql for CSCI315 Assignment 3
+SQL> Date: 13th May 2014
+SQL> Note:
+SQL>  */
+SQL> 
+SQL> SELECT O_ORDERKEY, O_ORDERSTATUS, O_TOTALPRICE, O_REGIONNAME
+  2  FROM ORDERS
+  3  WHERE O_ORDERDATE > '31-DEC-97' AND O_ORDERDATE < '01-JAN-99';
+
+40546 rows selected.
+
+
+Execution Plan
+----------------------------------------------------------                                          
+Plan hash value: 4130335093                                                                         
+                                                                                                    
+-----------------------------------------------------------------------------                       
+| Id  | Operation          | Name   | Rows  | Bytes | Cost (%CPU)| Time     |                       
+-----------------------------------------------------------------------------                       
+|   0 | SELECT STATEMENT   |        | 40042 |  1916K|  2700   (1)| 00:00:01 |                       
+|*  1 |  FILTER            |        |       |       |            |          |                       
+|*  2 |   TABLE ACCESS FULL| ORDERS | 40042 |  1916K|  2700   (1)| 00:00:01 |                       
+-----------------------------------------------------------------------------                       
+                                                                                                    
+Predicate Information (identified by operation id):                                                 
+---------------------------------------------------                                                 
+                                                                                                    
+   1 - filter(TO_DATE('01-JAN-99')>TO_DATE('31-DEC-97'))                                            
+   2 - filter("O_ORDERDATE">'31-DEC-97' AND "O_ORDERDATE"<'01-JAN-99')                              
+
+
+Statistics
+----------------------------------------------------------                                          
+          8  recursive calls                                                                        
+          0  db block gets                                                                          
+      10967  consistent gets                                                                        
+        463  physical reads                                                                         
+          0  redo size                                                                              
+    2025209  bytes sent via SQL*Net to client                                                       
+      30276  bytes received via SQL*Net from client                                                 
+       2705  SQL*Net roundtrips to/from client                                                      
+          0  sorts (memory)                                                                         
+          0  sorts (disk)                                                                           
+      40546  rows processed                                                                         
+
+SQL> SET AUTOTRACE OFF
+SQL> 
+SQL> PROMPT Done.
+Done.
+SQL> 
+SQL> /* (4) Finally, the script brings a relational table ORDERS to it original well normalized
+SQL> form. */
+SQL> ALTER TABLE ORDERS
+  2  DROP COLUMN O_REGIONNAME;
+
+Table altered.
+
+SQL> 
+SQL> spool off

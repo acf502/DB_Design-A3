@@ -1,0 +1,373 @@
+SQL> 
+SQL> SET ECHO ON
+SQL> SET FEEDBACK ON
+SQL> /*
+SQL> Name: Aaron Colin Foote
+SQL> File: solution7.sql for CSCI315 Assignment 3
+SQL> Date: 20th May 2014
+SQL> Note: Added	 /*+ INDEX(LINEITEM,LINEITEM_IDX1) */	 /* hint to start of task7.sql, to force index use in step 4
+SQL>  */
+SQL> 
+SQL> /* (1) First, the lists the total amount of storage measured in bytes and occupied by all
+SQL> indexes owned by a user CSCI315. The result should be displayed as a single
+SQL> number. This step must be implemented as a single SELECT statement. */
+SQL> 
+SQL> SELECT SUM(BYTES)
+  2  FROM DBA_EXTENTS
+  3  WHERE OWNER = 'CSCI315';
+
+SUM(BYTES)                                                                                          
+----------                                                                                          
+ 444596224                                                                                          
+
+1 row selected.
+
+SQL> 
+SQL> /*  NOTE: NO (2) LISTED IN ASSIGNMENT SPECIFICATION. */
+SQL> /* (3) Next, the script executes a script testsql.sql to test performance of SELECT
+SQL> statement included in a file task7.sql. Pay attention to a query execution plan
+SQL> and the total number of consistent gets reported by the script in
+SQL> Statistics section. */
+SQL> 
+SQL> /* Need to connect as user CSCI315 here to execute task7.sql successfully within testsql.sql */
+SQL> connect csci315/csci315
+Connected.
+SQL> 
+SQL> @testsql.sql
+SQL> SET LINESIZE 100
+SQL> SET PAGESIZE 300
+SQL> ACCEPT SCRIPT	CHAR PROMPT 'Script name>'
+Script name>task7.sql
+SQL> 
+SQL> SET AUTOTRACE TRACEONLY
+SQL> @&SCRIPT
+SQL> SELECT /*+ INDEX(LINEITEM,LINEITEM_IDX1) */ L_ORDERKEY, COUNT(*) TOT
+  2  FROM LINEITEM
+  3  WHERE L_QUANTITY = 45 AND L_DISCOUNT = 0.1
+  4  GROUP BY L_ORDERKEY
+  5  HAVING COUNT(*) > 1
+  6  ORDER BY  L_ORDERKEY;
+
+23 rows selected.
+
+
+Execution Plan
+----------------------------------------------------------                                          
+Plan hash value: 3379661513                                                                         
+                                                                                                    
+--------------------------------------------------------------------------------                    
+| Id  | Operation           | Name     | Rows  | Bytes | Cost (%CPU)| Time     |                    
+--------------------------------------------------------------------------------                    
+|   0 | SELECT STATEMENT    |          |   163 |  1467 | 12151   (1)| 00:00:01 |                    
+|*  1 |  FILTER             |          |       |       |            |          |                    
+|   2 |   SORT GROUP BY     |          |   163 |  1467 | 12151   (1)| 00:00:01 |                    
+|*  3 |    TABLE ACCESS FULL| LINEITEM |  3263 | 29367 | 12151   (1)| 00:00:01 |                    
+--------------------------------------------------------------------------------                    
+                                                                                                    
+Predicate Information (identified by operation id):                                                 
+---------------------------------------------------                                                 
+                                                                                                    
+   1 - filter(COUNT(*)>1)                                                                           
+   3 - filter("L_QUANTITY"=45 AND "L_DISCOUNT"=0.1)                                                 
+
+
+Statistics
+----------------------------------------------------------                                          
+        149  recursive calls                                                                        
+          0  db block gets                                                                          
+      32593  consistent gets                                                                        
+      32345  physical reads                                                                         
+          0  redo size                                                                              
+       1084  bytes sent via SQL*Net to client                                                       
+        555  bytes received via SQL*Net from client                                                 
+          3  SQL*Net roundtrips to/from client                                                      
+         10  sorts (memory)                                                                         
+          0  sorts (disk)                                                                           
+         23  rows processed                                                                         
+
+SQL> SET AUTOTRACE OFF
+SQL> 
+SQL> PROMPT Done.
+Done.
+SQL> 
+SQL> /* (4) Next, while connected as a user CSCI315, the script creates an index based on a
+SQL> single column. The index supposed to improve performance of SELECT statement
+SQL> included in a file task7.sql.
+SQL> Next, while connected as a user CSCI315 the script executes a script
+SQL> testsql.sql to test performance of SELECT statement included in a file
+SQL> task7.sql. When running a script testsql.sql prompts you about Script
+SQL> name>. Then, type in a full name of a file task7.sql and press Enter key. Pay
+SQL> attention to a query execution plan and the total number of consistent gets
+SQL> reported by the script in Statistics section. A query execution plan supposed
+SQL> to show that database system plans to use an index created in step (4) and it
+SQL> supposed to report a total number of consistent gets lower then in step (3).
+SQL> Next, a script solution7.sql supposed to drop an index created in this step. */
+SQL> 
+SQL> CREATE INDEX LINEITEM_IDX1 ON LINEITEM(L_QUANTITY);
+
+Index created.
+
+SQL> 
+SQL> @testsql.sql
+SQL> SET LINESIZE 100
+SQL> SET PAGESIZE 300
+SQL> ACCEPT SCRIPT	CHAR PROMPT 'Script name>'
+Script name>task7.sql
+SQL> 
+SQL> SET AUTOTRACE TRACEONLY
+SQL> @&SCRIPT
+SQL> SELECT /*+ INDEX(LINEITEM,LINEITEM_IDX1) */ L_ORDERKEY, COUNT(*) TOT
+  2  FROM LINEITEM
+  3  WHERE L_QUANTITY = 45 AND L_DISCOUNT = 0.1
+  4  GROUP BY L_ORDERKEY
+  5  HAVING COUNT(*) > 1
+  6  ORDER BY  L_ORDERKEY;
+
+23 rows selected.
+
+
+Execution Plan
+----------------------------------------------------------                                          
+Plan hash value: 1300643732                                                                         
+                                                                                                    
+----------------------------------------------------------------------------------------------------
+---                                                                                                 
+                                                                                                    
+| Id  | Operation                             | Name          | Rows  | Bytes | Cost (%CPU)| Time   
+  |                                                                                                 
+                                                                                                    
+----------------------------------------------------------------------------------------------------
+---                                                                                                 
+                                                                                                    
+|   0 | SELECT STATEMENT                      |               |   163 |  1467 | 21850   (1)| 00:00:0
+1 |                                                                                                 
+                                                                                                    
+|*  1 |  FILTER                               |               |       |       |            |        
+  |                                                                                                 
+                                                                                                    
+|   2 |   SORT GROUP BY                       |               |   163 |  1467 | 21850   (1)| 00:00:0
+1 |                                                                                                 
+                                                                                                    
+|*  3 |    TABLE ACCESS BY INDEX ROWID BATCHED| LINEITEM      |  3263 | 29367 | 21849   (1)| 00:00:0
+1 |                                                                                                 
+                                                                                                    
+|*  4 |     INDEX RANGE SCAN                  | LINEITEM_IDX1 | 35894 |       |    72   (0)| 00:00:0
+1 |                                                                                                 
+                                                                                                    
+----------------------------------------------------------------------------------------------------
+---                                                                                                 
+                                                                                                    
+                                                                                                    
+Predicate Information (identified by operation id):                                                 
+---------------------------------------------------                                                 
+                                                                                                    
+   1 - filter(COUNT(*)>1)                                                                           
+   3 - filter("L_DISCOUNT"=0.1)                                                                     
+   4 - access("L_QUANTITY"=45)                                                                      
+
+
+Statistics
+----------------------------------------------------------                                          
+         15  recursive calls                                                                        
+          0  db block gets                                                                          
+      21877  consistent gets                                                                        
+      18793  physical reads                                                                         
+          0  redo size                                                                              
+       1084  bytes sent via SQL*Net to client                                                       
+        555  bytes received via SQL*Net from client                                                 
+          3  SQL*Net roundtrips to/from client                                                      
+          1  sorts (memory)                                                                         
+          0  sorts (disk)                                                                           
+         23  rows processed                                                                         
+
+SQL> SET AUTOTRACE OFF
+SQL> 
+SQL> PROMPT Done.
+Done.
+SQL> 
+SQL> DROP INDEX LINEITEM_IDX1;
+
+Index dropped.
+
+SQL> 
+SQL> /* (5) Next, while connected as a user CSCI315, the script creates an index based on
+SQL> two columns, i.e. (composite key index). The index supposed to further improve
+SQL> performance of SELECT statement included in a file task7.sql.
+SQL> Next, while connected as a user CSCI315 the script executes a script
+SQL> testsql.sql to test performance of SELECT statement included in a file
+SQL> task7.sql. When running a script testsql.sql prompts you about Script
+SQL> name>. Then, type in a full name of a file task7.sql and press Enter key. Pay
+SQL> attention to a query execution plan and the total number of consistent gets
+SQL> reported by the script in Statistics section. A query execution plan supposed
+SQL> to show that database system plans to use an index created in step (5) and it
+SQL> supposed to report a total number of consistent gets lower then in step (4).
+SQL> Next, a script solution7.sql supposed to drop an index created in this step. */
+SQL> 
+SQL> CREATE INDEX LINEITEM_IDX2 ON LINEITEM(L_QUANTITY, L_DISCOUNT);
+
+Index created.
+
+SQL> 
+SQL> @testsql.sql
+SQL> SET LINESIZE 100
+SQL> SET PAGESIZE 300
+SQL> ACCEPT SCRIPT	CHAR PROMPT 'Script name>'
+Script name>task7.sql
+SQL> 
+SQL> SET AUTOTRACE TRACEONLY
+SQL> @&SCRIPT
+SQL> SELECT /*+ INDEX(LINEITEM,LINEITEM_IDX1) */ L_ORDERKEY, COUNT(*) TOT
+  2  FROM LINEITEM
+  3  WHERE L_QUANTITY = 45 AND L_DISCOUNT = 0.1
+  4  GROUP BY L_ORDERKEY
+  5  HAVING COUNT(*) > 1
+  6  ORDER BY  L_ORDERKEY;
+
+23 rows selected.
+
+
+Execution Plan
+----------------------------------------------------------                                          
+Plan hash value: 2506865420                                                                         
+                                                                                                    
+----------------------------------------------------------------------------------------------------
+---                                                                                                 
+                                                                                                    
+| Id  | Operation                             | Name          | Rows  | Bytes | Cost (%CPU)| Time   
+  |                                                                                                 
+                                                                                                    
+----------------------------------------------------------------------------------------------------
+---                                                                                                 
+                                                                                                    
+|   0 | SELECT STATEMENT                      |               |   163 |  1467 |  3117   (1)| 00:00:0
+1 |                                                                                                 
+                                                                                                    
+|*  1 |  FILTER                               |               |       |       |            |        
+  |                                                                                                 
+                                                                                                    
+|   2 |   SORT GROUP BY                       |               |   163 |  1467 |  3117   (1)| 00:00:0
+1 |                                                                                                 
+                                                                                                    
+|   3 |    TABLE ACCESS BY INDEX ROWID BATCHED| LINEITEM      |  3263 | 29367 |  3117   (1)| 00:00:0
+1 |                                                                                                 
+                                                                                                    
+|*  4 |     INDEX RANGE SCAN                  | LINEITEM_IDX2 |  3263 |       |    10   (0)| 00:00:0
+1 |                                                                                                 
+                                                                                                    
+----------------------------------------------------------------------------------------------------
+---                                                                                                 
+                                                                                                    
+                                                                                                    
+Predicate Information (identified by operation id):                                                 
+---------------------------------------------------                                                 
+                                                                                                    
+   1 - filter(COUNT(*)>1)                                                                           
+   4 - access("L_QUANTITY"=45 AND "L_DISCOUNT"=0.1)                                                 
+
+
+Statistics
+----------------------------------------------------------                                          
+         15  recursive calls                                                                        
+          0  db block gets                                                                          
+       3020  consistent gets                                                                        
+         10  physical reads                                                                         
+          0  redo size                                                                              
+       1084  bytes sent via SQL*Net to client                                                       
+        555  bytes received via SQL*Net from client                                                 
+          3  SQL*Net roundtrips to/from client                                                      
+          1  sorts (memory)                                                                         
+          0  sorts (disk)                                                                           
+         23  rows processed                                                                         
+
+SQL> SET AUTOTRACE OFF
+SQL> 
+SQL> PROMPT Done.
+Done.
+SQL> 
+SQL> DROP INDEX LINEITEM_IDX2;
+
+Index dropped.
+
+SQL> 
+SQL> /* (6) Next, while connected as a user CSCI315, the script creates an index based on
+SQL> three columns, i.e. (composite key index). The index supposed to further
+SQL> improve performance of SELECT statement included in a file task7.sql.
+SQL> Next, while connected as a user CSCI315 the script executes a script
+SQL> testsql.sql to test performance of SELECT statement included in a file
+SQL> task7.sql. When running a script testsql.sql prompts you about Script
+SQL> name>. Then, type in a full name of a file task7.sql and press Enter key. Pay
+SQL> attention to a query execution plan and the total number of consistent gets
+SQL> reported by the script in Statistics section. A query execution plan supposed
+SQL> to show that database system plans to use an index created in step (6) and it
+SQL> supposed to report a total number of consistent gets lower then in step (5). */
+SQL> 
+SQL> CREATE INDEX LINEITEM_IDX3 ON LINEITEM(L_QUANTITY, L_DISCOUNT, L_ORDERKEY);
+
+Index created.
+
+SQL> 
+SQL> @testsql.sql
+SQL> SET LINESIZE 100
+SQL> SET PAGESIZE 300
+SQL> ACCEPT SCRIPT	CHAR PROMPT 'Script name>'
+Script name>task7.sql
+SQL> 
+SQL> SET AUTOTRACE TRACEONLY
+SQL> @&SCRIPT
+SQL> SELECT /*+ INDEX(LINEITEM,LINEITEM_IDX1) */ L_ORDERKEY, COUNT(*) TOT
+  2  FROM LINEITEM
+  3  WHERE L_QUANTITY = 45 AND L_DISCOUNT = 0.1
+  4  GROUP BY L_ORDERKEY
+  5  HAVING COUNT(*) > 1
+  6  ORDER BY  L_ORDERKEY;
+
+23 rows selected.
+
+
+Execution Plan
+----------------------------------------------------------                                          
+Plan hash value: 3275619626                                                                         
+                                                                                                    
+---------------------------------------------------------------------------------------             
+| Id  | Operation             | Name          | Rows  | Bytes | Cost (%CPU)| Time     |             
+---------------------------------------------------------------------------------------             
+|   0 | SELECT STATEMENT      |               |   163 |  1467 |    13   (0)| 00:00:01 |             
+|*  1 |  FILTER               |               |       |       |            |          |             
+|   2 |   SORT GROUP BY NOSORT|               |   163 |  1467 |    13   (0)| 00:00:01 |             
+|*  3 |    INDEX RANGE SCAN   | LINEITEM_IDX3 |  3263 | 29367 |    13   (0)| 00:00:01 |             
+---------------------------------------------------------------------------------------             
+                                                                                                    
+Predicate Information (identified by operation id):                                                 
+---------------------------------------------------                                                 
+                                                                                                    
+   1 - filter(COUNT(*)>1)                                                                           
+   3 - access("L_QUANTITY"=45 AND "L_DISCOUNT"=0.1)                                                 
+
+
+Statistics
+----------------------------------------------------------                                          
+         15  recursive calls                                                                        
+          0  db block gets                                                                          
+         19  consistent gets                                                                        
+         12  physical reads                                                                         
+          0  redo size                                                                              
+       1084  bytes sent via SQL*Net to client                                                       
+        555  bytes received via SQL*Net from client                                                 
+          3  SQL*Net roundtrips to/from client                                                      
+          0  sorts (memory)                                                                         
+          0  sorts (disk)                                                                           
+         23  rows processed                                                                         
+
+SQL> SET AUTOTRACE OFF
+SQL> 
+SQL> PROMPT Done.
+Done.
+SQL> 
+SQL> /* (7) Next, a script solution7.sql supposed to drop an index created in this step. */
+SQL> 
+SQL> DROP INDEX LINEITEM_IDX3;
+
+Index dropped.
+
+SQL> 
+SQL> spool off
